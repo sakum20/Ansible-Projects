@@ -1,0 +1,22 @@
+---
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: update repository index
+    yum:
+      update_cache: yes
+      
+  - name: install httpd package
+    yum:
+      name: httpd 
+      state: latest  #to get the latest version of package
+    when: ansible_distribution in ["CentOS","Ubuntu"]
+      
+
+  - name: remove httpd package
+    yum:
+     name: httpd
+     state: absent
+    when: ansible_distribution == "CentOS" and ansible_distribution_version == "8.0"
