@@ -1,0 +1,35 @@
+##Host variable
+
+create dir under root -> host_vars
+create files with ip address or dns of defined in inventory
+
+
+
+Handlers:
+it is triggered when any one of the task is changed in the playbook. It is similar to register but, register will hold the last changes. 
+
+
+---
+
+- hosts: all
+  become: true
+  tasks:   ### this task always run before other tasks defined in the play book.
+          
+  - name: install httpd package
+    yum:
+      name: httpd 
+      state: latest  #to get the latest version of package
+    when: ansible_distribution in ["CentOS","Ubuntu"]
+    notify: restart_httpd   ## to capture state of this task in a variable
+    
+    
+
+Create dir called handlers under roles/web_servers/handlers. same place where tasks and files are present. 
+create main.yml 
+
+  - name: restart httpd
+    service:
+      name: "{{ httpd_service"}} 
+      state: restarted
+
+ 
