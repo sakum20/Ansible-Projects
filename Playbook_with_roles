@@ -1,0 +1,27 @@
+### How to use Roles & tasks in ansible
+
+roles/tasks
+roles/files
+---
+
+- hosts: all
+  become: true
+  pre_tasks:   ### this task always run before other tasks defined in the play book.
+
+  - name: update repository index
+    tags: always
+    yum:
+      update_cache: yes
+      
+
+- hosts: web_servers
+  become: true
+  roles:
+    - web_servers
+ 
+- hosts: db_servers
+  become: true
+  roles:
+    - db_servers
+  
+  
