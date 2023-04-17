@@ -1,0 +1,30 @@
+### How to manage services using ansible
+
+- hosts: web_servers
+  become: true
+  tasks:
+  
+  - name: install httpd package
+    yum:
+      name: httpd 
+      state: latest  #to get the latest version of package
+    when: ansible_distribution in ["CentOS","Ubuntu"]
+  
+  - name: start httpd
+    tags: httpd
+    service:
+      name: httpd
+      state: started
+    when: ansible_distribution in ["CentOS"]
+    
+  - name: start httpd
+    tags: httpd
+    service:
+      name: httpd
+      state: started
+    when: ansible_distribution in ["CentOS"]
+ 
+  - name: restart httpd
+    service:
+      name: httpd
+      state: restarted
