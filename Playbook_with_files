@@ -1,0 +1,42 @@
+### Using Copy,unarchive,lineinfile, register module
+
+Playbook:
+**************
+---
+
+- hosts: all
+  become: true
+  tasks:   ### this task always run before other tasks defined in the play book.
+
+  - name: Copy default file 
+    tags: copy
+    copy:
+      src:
+      dest:
+      owner:
+      group:
+      mode: 
+      
+      
+  - name: install putty by unarchiving
+    unarchive:
+      src: https://
+      dest: /usr/local/bin
+      remote_src: yes   ### indicates we are downloading it from the internet
+      owner:
+      group:
+      mode:
+      
+  - name: manipulating lines using line in file module 
+    lineinfile:
+      path: /etc/httpd.conf
+      regexp: '^Email'
+      line: Email Address
+    when: ansible_distribution == "CentOS"
+    register: httpd   ## to capture state of this task in a variable
+
+  - name: restart httpd
+    service:
+      name: httpd
+      state: restarted
+    when: httpd.changed  ## this task is executed only when httpd variable state is changed.        
