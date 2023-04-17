@@ -1,0 +1,63 @@
+## To run a specific task in the playbook by using tags concept. 
+
+Inventory file:
+*****************
+[web_servers]
+192.168.1.14
+
+[db_servers]
+192.168.1.16
+
+Playbook:
+**************
+---
+
+- hosts: all
+  become: true
+  pre_tasks:   ### this task always run before other tasks defined in the play book.
+
+  - name: update repository index
+    tags: always
+    yum:
+      update_cache: yes
+      
+
+- hosts: web_servers
+  become: true
+  tasks:
+  
+  - name: install httpd package
+    tags: httpd, centos   ### used to run a specific task by calling the appropriate tags. 
+    yum:
+      name: httpd 
+      state: latest  #to get the latest version of package
+    when: ansible_distribution in ["CentOS","Ubuntu"]
+      
+
+  - name: remove httpd package
+    tags: remove_httpd, centos
+    yum:
+     name: httpd
+     state: absent
+    when: ansible_distribution == "CentOS" and ansible_distribution_version == "8.0"
+ 
+- hosts: db_servers
+  become: true
+  tasks:
+  
+  - name: install mariadb package
+    tags: db, centos
+    yum:
+      name: mariadb 
+      state: latest  #to get the latest version of package
+    when: ansible_distribution in ["CentOS"]
+    
+
+Commands:
+***********
+
+ansible-playbook --list-tags <playbook.yml>
+ansible-playbook --tags "db" --ask-become-pass <playbook.yml>     #to target a specific task and execute it.
+ansible-playbook --tags "db,centos" --ask-become-pass <playbook.yml>
+  
+  
