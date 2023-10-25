@@ -1,0 +1,521 @@
+A. Error starting Oracle VM due to n/w issue:
+*********************************************
+
+Could not start the machine ansible-target1 because the following physical network interfaces were not found:
+
+Realtek RTL8852AE WiFi 6 802.11ax PCIe Adapter (adapter 1)
+
+You can either change the machine's network settings or stop the machine.
+
+Resolution:
+************
+
+Select VM -> settings -> N/w -> select host only adapter -> advanced -> paravir.. -> okay
+###############################################################################################################
+
+B. Links:
+***********
+
+Ansible documentation: https://docs.ansible.com/ansible/latest/index.html
+Github link: https://github.com/sakum20/Ansible-Projects
+#################################################################################################################
+
+C. Common ansible paths:
+**************************
+common dir -> /etc/ansible   #which holds config files
+/var/log # linux history tracking
+
+
+D. Adhoc Commands:
+********************
+
+An ad-hoc command is a one-time task or command that you run on one or more remote hosts without the need for a playbook. Ad-hoc commands are used for quick tasks and are particularly useful for system administrators to perform simple, one-off operations on remote servers. Ad-hoc commands are executed using the ansible command-line tool.
+
+1. ansible all --key-file <path to pem file> -i <inventory file name> -m <module>
+   ansible all --key-file ~/.ssh/ansible -i inventory -m ping
+
+2. ansible all -m ping 
+#You can shorten the above command by declaring config file with variable declaration in it
+
+
+3. ansible all --list-hosts
+
+4. ansible all -m gather_facts   
+#This command is used to list down all of the information abt the target machine including host name, os, hardware & other env values.
+
+5. ansible all -m gather_facts --limit 192.168.56.102 
+#This is used to limit the target machine with the ip we have provided in the command line against all of the target in the inventory.  
+
+6. ansible all -m apt -a update_cache=true --become --ask-become-pass
+# to update the package cache in the package management 
+# --become flag indicates that the task is related to administrative changes and should be executed with elevated privileges (e.g., using sudo), 
+# --ask-become-pass prompts you to enter the password for privilege escalation.
+
+7. ansible all -m apt -a name=apache --become --ask-become-pass 
+# to install apache package in all of the inventory machine.
+
+8. ansible all -m apt -a "name=apache state=latest" --become --ask-become-pass  
+# state -> it is used to update the package with the latest available version.
+
+9. ansible all -m apt -a upgrade=dist --become --ask-become-pass
+#same as step 6 command. 
+
+10. ansible-playbook --list-tags <playbook.yml> 
+# This is used to list the available tags in the Playbook.
+
+
+
+
+E. Config file declaration:
+*****************************
+
+vi ansible.cfg
+
+[defaults]
+inventory = inventory
+private_key_file = ~/ .ssh/ansible
+
+# When defining a custom cfg file, ansible is going to use this file and not the default one in the /etc dir. 
+
+F. Playbook:
+**************
+A playbook is a set of instructions written in YAML (Yet Another Markup Language) that defines a series of tasks to be executed on remote hosts to complete a specific work. 
+
+Key elements of playbook:
+Tasks: A playbook is made up of one or more tasks. Each task specifies a particular action or command that should be executed on a remote host. Tasks can include items like installing packages, copying files, restarting services, and more.
+
+Plays: Playbooks are organized into plays. A play is a collection of tasks that are targeted at a specific set of hosts. Each play typically has a name, a list of hosts or host patterns, and a series of tasks.
+
+Hosts: Playbooks can target one or more hosts, which are defined in an inventory. You can specify the target hosts for each play or for specific tasks within a play.
+
+Modules: Playbooks make use of Ansible modules. Modules are pre-written scripts that perform specific actions on remote hosts. You specify the module you want to use in a task and provide module-specific arguments.
+
+Variables: Playbooks often include variable definitions to customize tasks or roles. Variables can be set globally, at the play level, or at the task level to make playbooks flexible and reusable.
+
+Running a playbook: ansible-playbook <playbook name> --ask-become-pass
+#Once you run the above command, it first execute the gather_facts module and then execute the defined task. 
+
+---: YAML document separator used to seperate playbook 
+
+
+#For playbook 1 to 3, below is the inventory file used.
+
+cat inventory :
+192.168.56.102
+192.168.56.103
+
+a. Playbook 1: Package management 
+
+---
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: update package cache
+    apt:
+      update_cache: yes 
+      
+  - name: install apache package
+    apt: 
+       name: apache2 
+       state: latest
+       
+  - name: install apache package
+    apt: 
+       name: apache2 
+       state: absent  
+
+b. Playbook 2: When condition
+
+---
+
+- hosts: all
+  become: true 
+  tasks: 
+
+  - name: install apache package
+    apt: 
+       name: apache2 
+       state: latest
+    when: ansible_distribution in ["Ubuntu", "Centos"] 
+    
+#for single entry -> `ansible_distribution == "Ubuntu"`
+#for two diff variables -> `ansible_distribution == "Ubuntu" and ansible_distribution_version == "8.0"`
+
+c. Playbook 3: Installing multiple packages
+
+---
+
+- hosts: all
+  become: true 
+  tasks: 
+
+  - name: install apache & php package 
+    apt: 
+      name: 
+        - apache
+        - php 
+      state: latest 
+    when: version_distribution == "Centos"
+    
+  - name: install apache & php package 
+    apt: 
+      name: 
+        - apache
+        - php 
+      state: latest 
+    when: version_distribution == "Centos"
+    
+ 
+inventory file for playbook 4:
+192.168.10.10 variable_name=value variable_name=value 
+192.168.0.01 apache_package=apache2 php_package=lib 
+ 
+ d. Playbook 4: Using variables in the playbook:
+
+---
+
+- hosts: all 
+  become: true
+  tasks: 
+  
+  - name: Installing package 
+    package:
+      name: 
+        - "{{ apache_package }}"
+      state: latest
+      update_cache: yes
+    
+ #package module - is a generic module which is going to use the underlying package 
+
+inventory file for playbook 5 & 6:
+
+[web_servers]
+192.168.10.10
+
+[db_servers]
+192.168.0.1
+
+e. Playbook 5: Targeting specific hosts in the playbook and using pre_tasks
+
+---
+
+- hosts: all 
+  become: true 
+  pre_tasks: 
+  
+  - name: update cache for centos 
+    dnf:
+      update_cache: yes
+    when: ansible_distribution == "Centos"
+    
+- hosts: webservers
+  become: true
+  tasks:
+  
+  - name: install apache
+    dnf:
+      name: apache 
+      state: latest 
+    when: ansible_distribution == "Centos"
+    
+# Playbook 5 has two plays and play 2 is targeting only web server hosts. It also has pre_tasks which indicates this specific task should be run first before other plays in the playbook. 
+    
+ f. Playbook 6: Adding tags to the playbook 
+ 
+ # Tags are a useful feature that allows you to selectively run specific tasks or groups of tasks within a playbook instead of running a entire playbook. This is useful when you want to test a specific task. 
+ 
+ ---
+
+- hosts: all 
+  become: true 
+  pre_tasks: 
+  
+  - name: update cache for centos 
+    tags: always
+    dnf:
+      update_cache: yes
+    when: ansible_distribution == "Centos"
+    
+- hosts: webservers
+  become: true
+  tasks:
+  
+  - name: install apache
+  tags: apache,Centos
+    dnf:
+      name: apache 
+      state: latest 
+    when: ansible_distribution == "Centos"
+
+#Note 
+# - You can provide any values for the tags. "always" tag in the above playbook is an in-built tag and it ensures the specific task runs always when the playbook is executed.
+
+Running above playbook: 
+ansible-playbook --list-tags site.yml - #this is used to list down the tags in the playbook which we can use for our reference when running the playbook
+
+ansible-playbook --tags "centos,db" --ask-become-pass site.yml - #running playbook targeting specific task
+    
+
+g. Playbook 7: Managing files -> Copy and unarchieve module 
+
+---
+- hosts: all
+  become: true
+  tasks:
+  
+  - name: copying file 
+    copy: 
+      src: default_index.html
+      dest: /var/lib/index.html 
+      mode: 0700
+      owner: root
+      group: root 
+    
+  - name: install terraform
+    unarchive: 
+      src: https://terraform.io/download
+      dest: /usr/local/bin 
+      remote_src: yes 
+      mode: 0700
+      owner: root 
+      group: root 
+
+# copy module:                                                                                                               we havent provided the src file path, which indicates that the file should be in the files directory.                     dest: it copies the file to the destination dir and replaces the default_index to index.html 
+
+#unarchieve module: It downloads the file from the internet and place it in the dest dir and unarchive it. 
+#src: Web URL, remote_src : it indicates that the src file needs to be downloaded from the internet.
+
+h. Playbook 8: Managing services
+
+---
+
+- hosts: all
+  become: true 
+  tasks:
+  
+  - name: restarting the httpd service 
+    service:
+      name: httpd 
+      state: started 
+      enabled: yes
+    when: ansible_distribution in ["Ubuntu", "Centos"]
+    
+#Enabled - it indicates the service will be started automatically once after the system is booted. 
+
+i. Playbook 9: Register & Line in file module:
+
+---
+
+- hosts: all 
+  become: true 
+  tasks: 
+  
+  - name: change file content 
+    lineinfile:
+      path: 
+      regexp: 
+      line: 
+    register: httpd 
+    
+  - name: restart httpd
+    service:
+      name: httpd 
+      state: restarted 
+    when: httpd.changed 
+ 
+ # task 2 will only be executed when httpd is changed. Issue with this register is, it will take the most recent changes. Say for example, if you have two registers with same value and the last one has not made any changes, then the httpd will not be restarted as the last one is not changed even though the first one is changed. 
+ 
+j. Playbook 10: Roles 
+
+mkdir roles -> create each role as a directory inside the roles dir. -> create tasks dir inside each role dir. -> put playbook task inside this dir. 
+
+mkdir base
+mkdir dbservers 
+
+mkdir roles/base/tasks 
+mkdir roles/dbservers/tasks 
+
+vi roles/base/tasks/main.yml:
+
+  - name: install apache
+    dnf:
+      name: apache 
+      state: latest 
+    when: ansible_distribution == "Centos"
+    
+vi roles/dbservers/tasks/main.yml:
+
+  - name: copying file 
+    copy: 
+      src: default_index.html      #this file needs to be present inside the files dir under roles dir. 
+      dest: /var/lib/index.html 
+      mode: 0700
+      owner: root
+      group: root 
+    
+ 
+Dir structure:
+ls -ltr /ansible_tutorial/roles/role_name
+tasks
+files 
+
+
+Playbook content: 
+
+---
+
+- hosts: all
+  become: true
+  roles:
+    - base
+    
+- hosts: workstations 
+  become: true 
+  roles:
+    - workstation
+   
+k. Playbook 11: Handlers & host variables 
+
+inventory file:
+[web_servers]
+192.168.10.10
+
+[db_servers]
+192.168.0.1
+
+dir path = /ansible_tutorial/host_vars:
+vi 192.168.0.1.yml(ip add of remote host present in the inventory file)
+
+apache_package_name: apache2
+apache_service: apache2
+php_package_name: lib-mod-php 
+
+vi 192.168.0.2.yml 
+apache_package_name: httpd
+apache_service: httpd
+php_package_name: php 
+
+#Made changes to the task book. 
+vi roles/base/tasks/main.yml:
+
+  - name: install apache and php packages 
+    package:
+      name: 
+        - "{{ apache_package_name }}"
+        - "{{ php_package_name }}"
+      state: latest 
+      
+ vi roles/dbserver/tasks/main.yml: 
+ 
+  - name: start apache service 
+    service:
+      name: "{{ apache_service }}"
+      state: started 
+      enabled: yes 
+      
+d. Playbook 4: Two play sample example
+
+---
+- name: Update web servers
+  hosts: webservers
+  remote_user: root
+
+  tasks:
+  - name: Ensure apache is at the latest version
+    ansible.builtin.yum:
+      name: httpd
+      state: latest
+
+  - name: Write the apache config file
+    ansible.builtin.template:
+      src: /srv/httpd.j2
+      dest: /etc/httpd.conf
+
+- name: Update db servers
+  hosts: databases
+  remote_user: root
+
+  tasks:
+  - name: Ensure postgresql is at the latest version
+    ansible.builtin.yum:
+      name: postgresql
+      state: latest
+
+  - name: Ensure that postgresql is started
+    ansible.builtin.service:
+      name: postgresql
+      state: started
+    
+
+
+Key terminologies:
+********************
+
+1. Configuration management:
+*******************************
+Configuration Management:
+
+Configuration management refers to the practice of systematically managing and maintaining the configuration of software and systems to ensure they are in the desired state. It involves defining and controlling the settings, files, and services on a system to ensure consistency, reliability, and predictability.
+
+Example: Imagine you are a system administrator responsible for managing a group of web servers. You want to ensure that all these servers have the same software configurations, security settings, and web application code. Without configuration management, you would have to manually log into each server and make changes, which is time-consuming and error-prone.
+
+With configuration management, you can use a tool like Ansible to define the desired state of these servers in a playbook. For instance, you can specify that a particular package must be installed, a specific configuration file should have certain settings, and a web server service should be running. When you run the Ansible playbook, it automatically enforces these configurations on all servers, ensuring they are consistent and up-to-date.
+
+
+It includes:
+a.Inventory Management: 
+Managing inventory of all hardware and software components in an organization's environment, including servers, network devices, applications, and configurations.
+
+b. Change Management:
+Tracking and managing changes to the configuration which includes installation, updation & deployments to ensure changes are planned, documented, and properly tested.
+
+c. Version Control:
+Managing different versions of software, code, and configurations to enable the tracking of changes and rollbacks in case of issues.
+
+
+2. Orchestration:
+********************
+Orchestration is the coordination and automation of multiple tasks to achieve a specific goal or objective. It involves managing and sequencing individual actions or steps to ensure they work together harmoniously to complete a complex workflow or process.
+
+In cloud, orchestration is commonly used to automate and manage the provisioning, configuration, and deployment of infrastructure, applications, and services.
+
+
+
+Linux commands:
+systemctl status httpd 
+systemctl start httpd 
+
+File management modules:
+
+copy: This module is used to copy files from the local system to remote systems. It can also set permissions and ownership.
+
+template: The template module allows you to use Jinja2 templates to generate files on the remote system. It's often used for creating configuration files dynamically.
+
+assemble: The assemble module is used to assemble files on the remote system. It can be useful for reassembling split files or archives.
+
+unarchive: This module is used to extract compressed or archived files on the remote system, like tar, gzip, zip, etc.
+
+get_url: The get_url module is used to download files from the internet and save them on the remote system.
+
+fetch: The fetch module is the reverse of get_url. It downloads files from remote systems and saves them locally.
+
+file: The file module can be used to create, delete, or manage files and directories on the remote system.
+
+find: The find module is used to search for files and directories on the remote system based on various criteria like name, size, or permissions.
+
+lineinfile: This module is used to manage lines within a file. It can add, modify, or remove lines in a text file.
+
+replace: The replace module allows you to search for a pattern within a file and replace it with a specified string.
+
+synchronize: The synchronize module is used for efficient file synchronization between the local and remote systems.
+
+slurp: The slurp module allows you to read files on remote systems into a variable for further processing.
+
+patch: The patch module is used to apply unified diff files to remote files. It's often used for code or configuration patches.
+
+assemble: This module is used to assemble files on the remote system, typically for dealing with split files or parts of an archive.
+
+rsync: The rsync module enables you to use the rsync algorithm for efficient file synchronization between systems.
+
